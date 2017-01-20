@@ -62,6 +62,7 @@
 #include "VehicleDynamics.h"
 #include "Projection.h"
 #include "Snapshot.h"
+
 #include <sys/dir.h>
 #include "../common/dirlist.h"
 #include "../common/portability.h"
@@ -88,7 +89,7 @@ vector<string> files;  // video files to process
 VideoCapture capture;  //video capture object.
 string dirPath; // path to fileName
 string fileMid; // The date part of the file name placed there by the Foscam camera
-int objDelay = 1250;  // delay to be used when objects are detected in ROI;  Can be changed through use of "f" and "s" keys while running
+int objDelay = 50;  // delay to be used when objects are detected in ROI;  Can be changed through use of "f" and "s" keys while running
 bool pleaseTrace = false;  // If you want a trace file (lots of debug info)
 bool highLightsPlease = false;
 int speedLimit = 25;  // User supplied speed limit, used for color choice when posting speed
@@ -1179,7 +1180,6 @@ int main(){
 
 		capture.set(CV_CAP_PROP_POS_FRAMES, startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
 		frameNumber = int(startFrame);
-		int delay = 10;   //at least 10ms delay is necessary for proper operation of this program <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 		//work through frame pairs looking for differences
 		while (capture.get(CV_CAP_PROP_POS_FRAMES) < capture.get(CV_CAP_PROP_FRAME_COUNT) - 2){ // minus 2 to prevent reading empty frame at end.
@@ -1210,16 +1210,14 @@ int main(){
 			                  // differencing operations would provide, but at half the computational cost.
 
 			//show captured frame
-			 if (showVideo)imshow("Whole Scene", ROIFr2);
+			if (showVideo)imshow("Whole Scene", ROIFr2);
 
-			if (!showVideo)
-				delay = 1;
-			else if (objectDetected) 
-				delay = objDelay;
-			else 
-				delay = 10;
-
-			switch (waitKey(delay)){
+			int key;
+			if (objectDetected)
+				key = waitKey(objDelay);
+			else
+				key = 0;
+			switch (key) {
 			case 27: //'esc'     exit program.
 				return 0;
 			case 102: // 'f'    make display go faster;
