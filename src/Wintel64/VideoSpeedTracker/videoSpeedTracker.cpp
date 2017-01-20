@@ -490,6 +490,8 @@ void displayAnalysisGoingLeft(int inFrameNum, int index, Rect rectangle, Overlap
 
 
 
+#define arrowedLine(i, p1, p2, c, t) line(i, p1, p2, c, t)
+
 
 void logL2Rstats(bool isOK, int index, const string &d_t){
 // Final entries for L2R vehicle just completing speed analysis are placed in trace file and in stats files.  Video output to highlights
