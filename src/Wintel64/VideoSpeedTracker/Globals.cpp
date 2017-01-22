@@ -61,44 +61,12 @@ void getSides(const string &inLine, string *lhs, string *rhs) {
 
 
 bool Globals::readConfig(){
-
-// Items in config file VST.cfg must conform WRT order and spelling of LHS items, as follows:
-//  VST.cfg must use syntax:  <LHS> = <RHS> # 
-//                                            ^^^^^ Anything can follow the #
-	string lhsString[23] = {
-		"dataPathPrefix",
-		"L2RDirection",
-		"R2LDirection",
-		"obstruction", 
-		"AnalysisBoxLeft",
-		"AnalysisBoxTop",
-		"AnalysisBoxWidth",
-		"AnalysisBoxHeight",
-		"speedLineLeft",
-		"speedLineRight",
-		"maxL2RDistOnEntry",
-		"maxR2LDistOnEntry",
-		"entryLookBack",
-		"obstruction_extent",
-		"largeVehicleArea",
-		"CalibrationFramesL2R",
-		"CalibrationFramesR2L",
-		"SENSITIVITY_VALUE",
-		"BLUR_SIZE",
-		"SLOP",
-		"R2LStreetY",
-		"L2RStreetY",
-		"nextHeight"
-	};
-
-
 	ifstream configIn("VST.cfg");
 	if (!configIn.good()){
 		cout << "Can't open VST.cfg." << endl;
 		return false;
 	}
 
-	int lineNo = 0;
 	string::size_type place, place2;
 	while (getline(configIn, inLine)) {
 		if (!configIn){
@@ -113,115 +81,106 @@ bool Globals::readConfig(){
 		if (inLine.empty())
 			continue;   // blank line
 		if (getSides(inLine)){
-			if (lhs != lhsString[lineNo]){
-				cout << "Just read LHS doesn't match anything: <" << lhs << ">.  Aborting" << endl;
-				return false;
-			}
-			switch (lineNo){
-			case 0:             // dataPathPrefix
+			if (lhs == "dataPathPrefix") {
 				dataPathPrefix = rhs;
 				cout << "dataPathPrefix = " << dataPathPrefix << endl;
-				break;
-			case 1:             // L2RDirection
+			}
+			else if (lhs == "L2RDirection") {
 				L2RDirection = rhs;
 				cout << "L2RDirection = " << L2RDirection << endl;
-				break;
-			case 2:             // R2LDirection
+			}
+			else if (lhs == "R2LDirection") {
 				R2LDirection = rhs;
 				cout << "R2LDirection = " << R2LDirection << endl;
-				break;
-			case 3:             // obstruction  (If no foreground obstructions in scene, just make first value >= second value)
+			}
+			else if (lhs == "obstruction") {	// If no foreground obstructions in scene, just make first value >= second value
 				place = rhs.find(',');
 				place2 = rhs.find(']');
 				obstruction[0] = stoi(rhs.substr(1, place - 1));
 				obstruction[1] = stoi(rhs.substr(place + 1, (place2 - place) - 1));
 				cout << "obstruction[0] = " << obstruction[0] << endl;
 				cout << "obstruction[1] = " << obstruction[1] << endl;
-				break;
-			case 4:             // AnalysisBoxLeft     ( must be >= 0 and <= 1279)
+			}
+			else if (lhs == "AnalysisBoxLeft") {	// must be >= 0 and <= 1279
 				AnalysisBoxLeft = stoi(rhs);
 				cout << "AnalysisBoxLeft = " << AnalysisBoxLeft << endl;
-				break;
-			case 5:             // AnalysisBoxTop      ( must be >= 0 and <= 719)
+			}
+			else if (lhs == "AnalysisBoxTop") {	// must be >= 0 and <= 719
 				AnalysisBoxTop = stoi(rhs);
 				cout << "AnalysisBoxTop = " << AnalysisBoxTop << endl;
-				break;
-			case 6:             // AnalysisBoxWidth       ( must be >= 0 and <= (1279 - AnalysisBoxLeft))
+			}
+			else if (lhs == "AnalysisBoxWidth") {	// must be >= 0 and <= (1279 - AnalysisBoxLeft)
 				AnalysisBoxWidth = stoi(rhs);
 				cout << "AnalysisBoxWidth = " << AnalysisBoxWidth << endl;
-				break;
-			case 7:             // AnalysisBoxHeight            ( must be >= 0 and <= (719 - AnalysisBoxTop))
+			}
+			else if (lhs == "AnalysisBoxHeight") {	// must be >= 0 and <= (719 - AnalysisBoxTop)
 				AnalysisBoxHeight = stoi(rhs);
 				cout << "AnalysisBoxHeight = " << AnalysisBoxHeight << endl;
-				break;
-			case 8:             // speedLineLeft              (relative to AnalysisBoxLeft.  Must be >= 0 and <= (719 - AnalysisBoxWidth))
+			}
+			else if (lhs == "speedLineLeft") {	// relative to AnalysisBoxLeft.  Must be >= 0 and <= (719 - AnalysisBoxWidth)
 				speedLineLeft = stoi(rhs);
 				cout << "speedLineLeft = " << speedLineLeft << endl;
-				break;
-			case 9:             // speedLineRight          (relative to AnalysisBoxLeft.  Must be > speedLineLeft and <= (719 - AnalysisBoxWidth))
+			}
+			else if (lhs == "speedLineRight") {	// relative to AnalysisBoxLeft.  Must be > speedLineLeft and <= (719 - AnalysisBoxWidth)
 				speedLineRight = stoi(rhs);
 				cout << "speedLineRight = " << speedLineRight << endl;
-				break;
-			case 10:             // maxL2RDistOnEntry
+			}
+			else if (lhs == "maxL2RDistOnEntry") {
 				maxL2RDistOnEntry = stoi(rhs);
 				cout << "maxL2RDistOnEntry = " << maxL2RDistOnEntry << endl;
-				break;
-			case 11:             // maxR2LDistOnEntry
+			}
+			else if (lhs == "maxR2LDistOnEntry") {
 				maxR2LDistOnEntry = stoi(rhs);
 				cout << "maxR2LDistOnEntry = " << maxR2LDistOnEntry << endl;
-				break;
-			case 12:             // entryLookBack
+			}
+			else if (lhs == "entryLookBack") {
 				entryLookBack = stoi(rhs);
 				cout << "entryLookBack = " << entryLookBack << endl;
-				break;
-			case 13:             // obstruction_extent
+			}
+			else if (lhs == "obstruction_extent") {
 				obstruction_extent = stoi(rhs);
 				cout << "obstruction_extent = " << obstruction_extent << endl;
-				break;
-			case 14:             // largeVehicleArea
+			}
+			else if (lhs == "largeVehicleArea") {
 				largeVehicleArea = stoi(rhs);
 				cout << "largeVehicleArea = " << largeVehicleArea << endl;
-				break;
-			case 15:             // CalibrationFramesL2R     (How many frames does it take a L2R vehicle to pass thru speed zone at speed limit?)
+			}
+			else if (lhs == "CalibrationFramesL2R") {	// How many frames does it take a L2R vehicle to pass thru speed zone at speed limit?
 				CalibrationFramesL2R = stoi(rhs);
 				cout << "CalibrationFramesL2R = " << CalibrationFramesL2R << endl;
-				break;
-			case 16:             // CalibrationFramesR2L     (How many frames does it take a R2L vehicle to pass thru speed zone at speed limit?)
+			}
+			else if (lhs == "CalibrationFramesR2L") {	// How many frames does it take a R2L vehicle to pass thru speed zone at speed limit?
 				CalibrationFramesR2L = stoi(rhs);
 				cout << "CalibrationFramesR2L = " << CalibrationFramesR2L << endl;
-				break;
-			case 17:             // SENSITIVITY_VALUE
+			}
+			else if (lhs == "SENSITIVITY_VALUE") {
 				SENSITIVITY_VALUE = stoi(rhs);
 				cout << "SENSITIVITY_VALUE = " << SENSITIVITY_VALUE << endl;
-				break;
-			case 18:             // BLUR_SIZE
+			}
+			else if (lhs == "BLUR_SIZE") {
 				BLUR_SIZE = stoi(rhs);
 				cout << "BLUR_SIZE = " << BLUR_SIZE << endl;
-				break;
-			case 19:             // SLOP
+			}
+			else if (lhs == "SLOP") {
 				SLOP = stoi(rhs);
 				cout << "SLOP = " << SLOP << endl;
-				break;
-			case 20:             // R2LStreetY         (R2L hubcap line)
+			}
+			else if (lhs == "R2LStreetY") {	// R2L hubcap line
 				R2LStreetY = stoi(rhs);
 				cout << "R2LStreetY = " << R2LStreetY << endl;
-				break;
-			case 21:             // L2RStreetY         (L2R hubcap line)
+			}
+			else if (lhs == "L2RStreetY") {	// L2R hubcap line
 				L2RStreetY = stoi(rhs);
 				cout << "L2RStreetY = " << L2RStreetY << endl;
-				break;
-			case 22:             // nextHeight
+			}
+			else if (lhs == "nextHeight") {
 				nextHeight = stoi(rhs);
 				cout << "nextHeight = " << nextHeight << endl;
-				break;
-
-			default:
-				if (lineNo > 22){
-					cout << "Too many lines in config file.  Abortiing." << endl;
-					return false;
-				}
-			} // switch
-			lineNo++;
+			}
+			else {
+				cout << "Unknown key in config file: <" << lhs << ">.  Abortiing." << endl;
+				return false;
+			}
 		
 		}
 		else{
@@ -229,9 +188,6 @@ bool Globals::readConfig(){
 			configIn.close();
 			return false;
 		}
-		
-
-
 	}  // while not eof
 
 	configIn.close();
