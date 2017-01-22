@@ -81,6 +81,13 @@ public:
 	int R2LStreetY = 122;			// Hubcap line for R2L vehicles on flat street.Orange. Locust Ave.  Relative to AnalysisBoxTop...pixels
 	int L2RStreetY = 158;			// Hubcap line for L2R vehicles on flat street.Purple. Locust Ave. Relative to AnalysisBoxTop...pixels
 	int nextHeight = 85;			// Initial best guess for height of entering vehicles...pixels.
+	int speedLimit = 25;
+	int egregiousSpeedLowerBound = 35;
+	int crazySpeed = 55;
+	int startFrame = 0;              // Frame number to start with in first file
+	int highLightsSpeedLower = 35;   // Threshold lower speed for highlights file
+	int highLightsSpeedUpper = 100;  // Threshold upper bound on speed for highlights file
+	int minimumProfileArea = 100;    // Min area of large speeding vehicle to be added to highlights
 
 private:
 

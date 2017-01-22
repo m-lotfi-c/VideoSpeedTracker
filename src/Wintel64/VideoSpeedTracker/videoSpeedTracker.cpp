@@ -91,14 +91,8 @@ string fileMid; // The date part of the file name placed there by the Foscam cam
 int objDelay = 50;  // delay to be used when objects are detected in ROI;  Can be changed through use of "f" and "s" keys while running
 bool pleaseTrace = false;  // If you want a trace file (lots of debug info)
 bool highLightsPlease = false;
-int speedLimit = 25;  // User supplied speed limit, used for color choice when posting speed
-int egregiousSpeedLowerBound = 35;    // User supplied egregious speed lower bound, used for color choice when posting speed
 int crazySpeed = 55;
-int highLightsSpeedLower = 35; // Default lower threshold for including vehicles in the highlights file
-int highLightsSpeedUpper = 100; // Default upper threshold for including vehicles in the highlights file
-int minimumProfileArea = 100;  // Default lower bound on size of large vehicle to be added to highlights if speeding over speed limit.
 int frameNumber; // Current framenumber being processed, relative to beginning of file "fileName"
-double startFrame = 0.0;
 Rect AnalysisBox;  // the coordinates and extents of the region beng analyzed for vehicle motion.  Subregion of frames read in.
 VideoWriter hiLiteVideo; // For writing highlights...the Scofflaws
 Globals g;
@@ -205,26 +199,9 @@ void setup(int argc, const char **argv){
 
 	statsFile << ", , Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, DeltaPix, VehicleArea, , estSpeed" << endl;
 
-	string answer;
-	cout << endl << "Speed Limit: (int) [" + intToString(speedLimit) + "]: ";
-	getline(cin, answer);
-	if (!answer.empty()) speedLimit = stoi(answer);
-	cout << endl;
-
-	egregiousSpeedLowerBound = speedLimit + 10;
-	cout << "Egregious Speed Lower Bound: (int) [" + intToString(egregiousSpeedLowerBound) + "]: ";
-	getline(cin, answer);
-	if (!answer.empty()) egregiousSpeedLowerBound = max(stoi(answer), speedLimit);
-	cout << endl;
-
-	crazySpeed = egregiousSpeedLowerBound + 20;  // Stats reporting will flag anything faster than this.
+	crazySpeed = g.egregiousSpeedLowerBound + 20;  // Stats reporting will flag anything faster than this.
 
 // What frame number would you like to start with in the first file?
-
-	startFrame = 0.0;
-	cout << "Frame number to start with in first file (int) [0]? : ";
-	getline(cin, answer);
-	if (!answer.empty()) startFrame = stod(answer);
 
 // Want a highlights file?
 	highLightsPlease = false;
@@ -232,32 +209,10 @@ void setup(int argc, const char **argv){
 	getline(cin, yesNo);
 	if (!yesNo.empty()) highLightsPlease = (yesNo == "y");
 
-// What lower threshold speed for being added to highlights?
 	if (highLightsPlease){
-		cout << endl << "Threshold lower speed for highlights file: (int) [" + intToString(highLightsSpeedLower) + "]: ";
-		getline(cin, answer);
-		if (!answer.empty()) highLightsSpeedLower = stoi(answer);
-// What upper threshold speed for being added to highlights?
-		cout << endl << "Threshold upper bound on speed for highlights file: (int) [" + intToString(highLightsSpeedUpper) + "]: ";
-		getline(cin, answer);
-		if (!answer.empty()) highLightsSpeedUpper = stoi(answer);
-// What minimum profile area should be used for adding speeding vehicles to highlights?
-		cout << endl << "Min area of large speeding vehicle to be added to highlights (int) [" + intToString(minimumProfileArea) + "]: ";
-		getline(cin, answer);
-		if (!answer.empty()) minimumProfileArea = stoi(answer);
-		cout << endl;
-		if (files.size() > 1){ // give trace and stats files names based on directory name
-			hiLiteVideo.open("Hilites.avi",
-//				CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
-			-1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
-		}
-		else{ // yesNoAll == "y" which means only one file to process; give it name corresponding to input file name
-			string d_t = get_date_and_time(files.front(), "_");
-			hiLiteVideo.open("HiLites.avi",
-//				CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
-			-1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
-			
-		}
+    hiLiteVideo.open("Hilites.avi",
+//		CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
+		  -1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
 		if (!hiLiteVideo.isOpened()){
 			cout << "ERROR Opening HiLites File\n";
 			getchar();
@@ -350,8 +305,8 @@ Rect coalesce(Rect rectangles[], int numRects, int loX, int hiX, grabType how){
 
 bool meetsHLRCriterion(int inSpeed, int inArea){ // Does the vehicle speed meet criterion for HiLites reel?
 	return highLightsPlease 
-		&& (   ((inSpeed >= highLightsSpeedLower) && (inSpeed <= highLightsSpeedUpper))
-		||    /* ((inSpeed >= (highLightsSpeedLower - 8)) && */ (inArea >= g.largeVehicleArea) /*)*/);
+		&& (   ((inSpeed >= g.highLightsSpeedLower) && (inSpeed <= g.highLightsSpeedUpper))
+		||    /* ((inSpeed >= (g.highLightsSpeedLower - 8)) && */ (inArea >= g.largeVehicleArea) /*)*/);
 }
 
 void displayAnalysisGoingRight(int inFrameNum, int index, Rect rectangle, OverlapType Olap, Mat &AnalysisFrame, int estSpeed){
@@ -373,9 +328,9 @@ void displayAnalysisGoingRight(int inFrameNum, int index, Rect rectangle, Overla
 	else
 		cv::line(AnalysisFrame, Point(x + wd, y), Point(x + wd, y + ht), Scalar(CVBlue), 2);
 	if (estSpeed > 0) {
-		if (estSpeed <= speedLimit)
+		if (estSpeed <= g.speedLimit)
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelRight-180, 30), 2, 1, Scalar(CVGreen), 2);
-		else if (estSpeed < egregiousSpeedLowerBound) 
+		else if (estSpeed < g.egregiousSpeedLowerBound) 
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelRight-180, 30), 2, 1, Scalar(CVYellow), 2);
 		else
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelRight-180, 30), 2, 1, Scalar(CVRed), 2);
@@ -416,9 +371,9 @@ void displayAnalysisGoingLeft(int inFrameNum, int index, Rect rectangle, Overlap
 	else
 		cv::line(AnalysisFrame, Point(x + wd, y), Point(x + wd, y + ht), Scalar(CVGreen), 2);
 	if (estSpeed > 0) {
-		if(estSpeed <= speedLimit) 
+		if(estSpeed <= g.speedLimit) 
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelLeft, 30), 2, 1, Scalar(CVGreen), 2);
-		else if (estSpeed < egregiousSpeedLowerBound)
+		else if (estSpeed < g.egregiousSpeedLowerBound)
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelLeft, 30), 2, 1, Scalar(CVYellow), 2);
 		else 
 			putText(AnalysisFrame, intToString(estSpeed) + " MPH", Point(g.pixelLeft, 30), 2, 1, Scalar(CVRed), 2);
@@ -494,9 +449,9 @@ void logL2Rstats(bool isOK, int index, const string &d_t){
 				if (i == vehiclesGoingRight[index].getNumberSavedFrames() - 1){
 					arrowedLine(zero, Point(midPoint - 25, arrowY), Point(midPoint + 25, arrowY), Scalar(CVBlack), 5);
 					arrowedLine(zero, Point(speedRight - 60, arrowY), Point(speedRight - 10, arrowY), Scalar(CVPurple), 5);
-					if (estSpeed >= egregiousSpeedLowerBound) 
+					if (estSpeed >= g.egregiousSpeedLowerBound) 
 						putText(zero, intToString(estSpeed) + " MPH", Point(speedRight - 125, AnalysisBox.y - 55), 2, 1, Scalar(CVRed), 2);
-					else if (estSpeed > speedLimit)
+					else if (estSpeed > g.speedLimit)
 						putText(zero, intToString(estSpeed) + " MPH", Point(speedRight - 125, AnalysisBox.y - 55), 2, 1, Scalar(CVYellow), 2);
 					else putText(zero, intToString(estSpeed) + " MPH", Point(speedRight - 125, AnalysisBox.y - 55), 2, 1, Scalar(CVGreen), 2);
 				}
@@ -561,9 +516,9 @@ void logR2Lstats(bool isOK, int index, const string &d_t){
 				if (i == vehiclesGoingLeft[index].getNumberSavedFrames() - 1){
 					arrowedLine(zero, Point(midPoint + 25, arrowY), Point(midPoint - 25, arrowY), Scalar(CVBlack), 5);
 					arrowedLine(zero, Point(speedleft + 60, arrowY), Point(speedleft + 10, arrowY), Scalar(CVOrange), 5);
-					if (estSpeed >= egregiousSpeedLowerBound)
+					if (estSpeed >= g.egregiousSpeedLowerBound)
 						putText(zero, intToString(estSpeed) + " MPH", Point(speedleft, AnalysisBox.y - 55), 2, 1, Scalar(CVRed), 2);
-					else if (estSpeed > speedLimit)
+					else if (estSpeed > g.speedLimit)
 						putText(zero, intToString(estSpeed) + " MPH", Point(speedleft, AnalysisBox.y - 55), 2, 1, Scalar(CVYellow), 2);
 					else putText(zero, intToString(estSpeed) + " MPH", Point(speedleft, AnalysisBox.y - 55), 2, 1, Scalar(CVGreen), 2);
 				}
@@ -1095,8 +1050,7 @@ void processFile(const string &fileName) {
 	vehiclesGoingRight.erase(vehiclesGoingRight.begin(), vehiclesGoingRight.end());  // Reinitialize
 	vehiclesGoingLeft.erase(vehiclesGoingLeft.begin(), vehiclesGoingLeft.end());   // Reinitialize  
 	bailing = false;  // Reinitialize
-	startFrame = 0.0;
-
+	g.startFrame = 0.0;
 
 	string FName = fileName;
 	cout << "Trying to capture from " + FName << endl;
@@ -1119,8 +1073,8 @@ void processFile(const string &fileName) {
 		return;
 	}
 
-	capture.set(CV_CAP_PROP_POS_FRAMES, startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
-	frameNumber = int(startFrame);
+	capture.set(CV_CAP_PROP_POS_FRAMES, g.startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
+	frameNumber = int(g.startFrame);
 
 	//work through frame pairs looking for differences
 	while (capture.get(CV_CAP_PROP_POS_FRAMES) < capture.get(CV_CAP_PROP_FRAME_COUNT) - 2){ // minus 2 to prevent reading empty frame at end.
