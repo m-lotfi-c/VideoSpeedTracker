@@ -43,22 +43,19 @@ Globals::~Globals()
 string inLine, lhs, rhs;
 
 
-bool getSides(string inLine){
-	string tempLHS, tempRHS;
-	istringstream configLine(inLine);
-	getline(configLine, tempLHS, '=');
-	getline(configLine, tempRHS, '#');
-	lhs = tempLHS;
-	rhs = tempRHS;
-	return true;
-}
-
 string trim(const string &toBeTrimmed){
 	string::size_type first = 0;
 	while (first < toBeTrimmed.size() && toBeTrimmed[first] == ' ') first++;
 	int last = toBeTrimmed.length() - 1;
 	while (toBeTrimmed[last] == ' ') last--;
 	return toBeTrimmed.substr(first, (last-first)+1);
+}
+
+void getSides(const string &inLine, string *lhs, string *rhs) {
+	string::size_type p;
+	p = inLine.find('=');
+	*lhs = trim(inLine.substr(0, p));
+	*rhs = trim(inLine.substr(p+1));
 }
 
 
@@ -116,8 +113,6 @@ bool Globals::readConfig(){
 		if (inLine.empty())
 			continue;   // blank line
 		if (getSides(inLine)){
-			lhs = trim(lhs);
-			rhs = trim(rhs);
 			if (lhs != lhsString[lineNo]){
 				cout << "Just read LHS doesn't match anything: <" << lhs << ">.  Aborting" << endl;
 				return false;
