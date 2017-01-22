@@ -52,6 +52,7 @@ class Globals
 {
 public:
 	bool applyConfig(const string &lhs, const string &rhs);	
+	bool parseAndApplyConfig(const string &line);
 	bool readConfig();	
 
 	const int pixelLeft = 0;				// This won't change.  It's used relative to AnalysisBoxLeft.

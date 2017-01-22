@@ -47,6 +47,12 @@ void getSides(const string &inLine, string *lhs, string *rhs) {
 	*rhs = trim(inLine.substr(p+1));
 }
 
+bool Globals::parseAndApplyConfig(const string &line) {
+	string lhs, rhs;
+	getSides(line, &lhs, &rhs);
+	return applyConfig(lhs, rhs);
+}
+
 bool Globals::applyConfig(const string &lhs, const string &rhs) {
 	string::size_type place, place2;
 
@@ -136,9 +142,7 @@ bool Globals::readConfig(){
 			inLine.pop_back();
 		if (inLine.empty())
 			continue;   // blank line
-		string lhs, rhs;
-		getSides(inLine, &lhs, &rhs);
-		if (!applyConfig(lhs, rhs))
+		if (!parseAndApplyConfig(inLine))
 			return false;
 	}  // while not eof
 
