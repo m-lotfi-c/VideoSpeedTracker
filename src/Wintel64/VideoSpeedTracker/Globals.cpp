@@ -53,11 +53,11 @@ bool getSides(string inLine){
 	return true;
 }
 
-string trim(string toBeTrimmed){
-	int first = 0;
-	while (toBeTrimmed.substr(first, 1) == " ") first++;
+string trim(const string &toBeTrimmed){
+	string::size_type first = 0;
+	while (first < toBeTrimmed.size() && toBeTrimmed[first] == ' ') first++;
 	int last = toBeTrimmed.length() - 1;
-	while (toBeTrimmed.substr(last, 1) == " ") last--;
+	while (toBeTrimmed[last] == ' ') last--;
 	return toBeTrimmed.substr(first, (last-first)+1);
 }
 
