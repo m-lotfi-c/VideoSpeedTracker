@@ -62,6 +62,7 @@
 #include "VehicleDynamics.h"
 #include "Projection.h"
 #include "Snapshot.h"
+#include <getopt.h>
 
 #include <sys/dir.h>
 #include "../common/dirlist.h"
@@ -114,88 +115,117 @@ static string get_date_and_time(const string &filename, const string &sep) {
 
 // Interact with the user via command line to gather setup information.
 // Also, call readconfig() to read in (from file VST.cfg) and assign configuration data.
-void setup(int argc, const char **argv){
-	if (argc <= 1) {
-		cerr << "Usage:" << endl;
-		cerr << "  vst file.avi [file.avi [...]]" << endl;
-		exit(EXIT_FAILURE);
-	}
+void setup(int argc, char *const *argv){
 
 // Get configuration values from VST.cfg and set corresponding objects in Globals.h to read-in values.
 	if (!g.readConfig()){
 		cout << "Reading of config file appears to have failed.   Exiting" << endl;
 		exit(EXIT_FAILURE);
 	}
+
+	bool showLines = false;
+	string highlightsFilename, traceFilename;
+	
+	enum { SHOW_LINES };
+	struct option long_options[] = {
+		{ "show-lines", no_argument,       0, SHOW_LINES },
+		{ "highlights", required_argument, 0, 'H' },
+		{ "trace",      required_argument, 0, 't' },
+		{ 0,            0,                 0, 0 },
+	};
+
+	int c, option_index = 0;
+	while ((c = getopt_long(argc, argv, "H:t:o:", long_options, &option_index)) != -1) {
+		switch (c) {
+			case 0:
+				switch (option_index) {
+					case SHOW_LINES:
+						showLines = true;
+						break;
+				}
+				break;
+			case 'H':
+				highLightsPlease = true;
+				highlightsFilename = optarg;
+				break;
+			case 't':
+				pleaseTrace = true;
+				traceFilename = optarg;
+				break;
+			case 'o':
+				if (!g.parseAndApplyConfig(optarg))
+					exit(EXIT_FAILURE);
+				break;
+			default:
+				exit(EXIT_FAILURE);
+		}
+	}
+					
+
 // PixelLeft is always zero relative to AnalysisBoxLeft;  PixelRight depends on AnalysisBoxWidth/
 	g.pixelRight = g.AnalysisBoxWidth; // index of rightmost pixel in AnalysisBox.
 	AnalysisBox = Rect(g.AnalysisBoxLeft, g.AnalysisBoxTop, g.AnalysisBoxWidth, g.AnalysisBoxHeight);  // For use when performing speed analysis in cropped region
 
 	Mat frame;
 
-	for (int i=1; i<argc; i++)
+	for (int i=optind; i<argc; i++)
 		files.push_back(argv[i]);
-	assert(!files.empty());
+	
+	if (files.empty()) {
+		cerr << "Usage:" << endl;
+		cerr << "  vst [options] file.avi [file.avi [...]]" << endl;
+		exit(EXIT_FAILURE);
+	}
 
 	// Do a one-time setup of region of interest, obstructions and speed posts
-	string FullName = files.back();
-	capture.open(FullName);
-	if (!capture.isOpened()){
-		cout << "ERROR ACQUIRING VIDEO FEED\n";
-		getchar();
-		return;
-	}
-	capture.read(frame);
-	cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop + g.AnalysisBoxHeight), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + g.speedLineLeft, 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.speedLineLeft, 160 + g.AnalysisBoxTop), Scalar(CVWhite), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + g.speedLineRight, 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.speedLineRight, 160 + g.AnalysisBoxTop), Scalar(CVWhite), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + g.obstruction[0], 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.obstruction[0], 160 + g.AnalysisBoxTop), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + g.obstruction[1], 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.obstruction[1], 160 + g.AnalysisBoxTop), Scalar(CVYellow), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + 10, g.AnalysisBoxTop + g.R2LStreetY), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth - 20, g.AnalysisBoxTop + g.R2LStreetY), Scalar(CVOrange), 2);
-	cv::line(frame, Point(g.AnalysisBoxLeft + 10, g.AnalysisBoxTop + g.L2RStreetY), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth - 20, g.AnalysisBoxTop + g.L2RStreetY), Scalar(CVPurple), 2);
-
-	waitKey(20);
-	if (frame.empty()) {
-		cerr << "Video frame is empty" << endl;
-		exit(EXIT_FAILURE);
-	}
-	cv::imshow("Full Frame", frame);
-	waitKey(20);
-
-	cout << endl << "Are Analysis Box, Speed Measuring Zone, " << endl << "    Obstruction Framing, and Hubcap Lines OK (y|n) [y] ?  ";
-	std::string yesNo;
-	getline(cin, yesNo);
-	if (!yesNo.empty() & (yesNo == "n")){ 
-		cout << "You'll need to change values in VST.cfg.  Terminating.   Hit enter to exit program." << endl;
+	if (showLines) {
+		string FullName = files.back();
+		capture.open(FullName);
+		if (!capture.isOpened()){
+			cout << "ERROR ACQUIRING VIDEO FEED\n";
+			getchar();
+			return;
+		}
+		capture.read(frame);
+		cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop + g.AnalysisBoxHeight), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth, g.AnalysisBoxTop + g.AnalysisBoxHeight), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + g.speedLineLeft, 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.speedLineLeft, 160 + g.AnalysisBoxTop), Scalar(CVWhite), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + g.speedLineRight, 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.speedLineRight, 160 + g.AnalysisBoxTop), Scalar(CVWhite), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + g.obstruction[0], 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.obstruction[0], 160 + g.AnalysisBoxTop), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + g.obstruction[1], 85 + g.AnalysisBoxTop), Point(g.AnalysisBoxLeft + g.obstruction[1], 160 + g.AnalysisBoxTop), Scalar(CVYellow), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + 10, g.AnalysisBoxTop + g.R2LStreetY), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth - 20, g.AnalysisBoxTop + g.R2LStreetY), Scalar(CVOrange), 2);
+		cv::line(frame, Point(g.AnalysisBoxLeft + 10, g.AnalysisBoxTop + g.L2RStreetY), Point(g.AnalysisBoxLeft + g.AnalysisBoxWidth - 20, g.AnalysisBoxTop + g.L2RStreetY), Scalar(CVPurple), 2);
+		
+		waitKey(20);
+		if (frame.empty()) {
+			cerr << "Video frame is empty" << endl;
+			exit(EXIT_FAILURE);
+		}
+		cv::imshow("Full Frame", frame);
+		waitKey(20);
+		
+		cout << endl << "Are Analysis Box, Speed Measuring Zone, " << endl << "    Obstruction Framing, and Hubcap Lines OK (y|n) [y] ?  ";
+		std::string yesNo;
 		getline(cin, yesNo);
+		if (!yesNo.empty() & (yesNo == "n")){ 
+			cout << "You'll need to change values in VST.cfg.  Terminating.   Hit enter to exit program." << endl;
+			getline(cin, yesNo);
+			cv::destroyWindow("Full Frame");
+			capture.release();
+			exit(EXIT_FAILURE);
+		}
+		else{
+			if (yesNo.substr(0, 1) == "y")
+				cout << "Glad you're happy." << endl;;
+		}
 		cv::destroyWindow("Full Frame");
-		capture.release();
-		exit(EXIT_FAILURE);
 	}
-	else{
-		if (yesNo.substr(0, 1) == "y")
-			cout << "Glad you're happy." << endl;;
-	}
-	cv::destroyWindow("Full Frame");
-
-// Want a trace file?
-	pleaseTrace = false;
-	cout << endl << "Want a trace file (y/n) [n]? : ";
-	getline(cin, yesNo);
-	if (!yesNo.empty()) pleaseTrace = (yesNo == "y");
 
 // Open trace file (if requested) and stats file
-	if (files.size() > 1){ // give trace and stats files names based on directory name
-		if (pleaseTrace) traceFile.open("trace.txt");
-		statsFile.open("stats.csv");
-	}
-	else{ // yesNoAll == "y" which means only one file to process; give it name corresponding to input file name
-		string d_t = get_date_and_time(files.front(), "_");
-		if (pleaseTrace) traceFile.open("trace.txt");
-		statsFile.open("stats.csv");
-	}
+	if (pleaseTrace) traceFile.open(traceFilename);
+	statsFile.open("stats.csv");
 
 	statsFile << ", , Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, DeltaPix, VehicleArea, , estSpeed" << endl;
 
@@ -204,18 +234,12 @@ void setup(int argc, const char **argv){
 // What frame number would you like to start with in the first file?
 
 // Want a highlights file?
-	highLightsPlease = false;
-	cout << endl << "Want a highlights file (y/n) [n]? : ";
-	getline(cin, yesNo);
-	if (!yesNo.empty()) highLightsPlease = (yesNo == "y");
-
 	if (highLightsPlease){
-    hiLiteVideo.open("Hilites.avi",
+		hiLiteVideo.open(highlightsFilename,
 //		CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
-		  -1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
+			-1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
 		if (!hiLiteVideo.isOpened()){
 			cout << "ERROR Opening HiLites File\n";
-			getchar();
 			return;
 		}
 	}
@@ -817,7 +841,7 @@ bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame, const string &d
 				vehiclesGoingRight.push_back(VehicleDynamics(L2R));
 				vehiclesGoingRight[vehiclesGoingRight.size() - 1].addSnapshot(Snapshot(coalescedRectangle, frameNumber));
 				if (coalescedRectangle.x + coalescedRectangle.width >= g.speedLineLeft)
-					     vehiclesGoingRight[vehiclesGoingRight.size() - 1].markInvalidSpeed();
+					vehiclesGoingRight[vehiclesGoingRight.size() - 1].markInvalidSpeed();
 				if (pleaseTrace) traceFile << endl << endl << "<" << frameNumber
 					<< ">    >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Just added rightbound vehicle[" << vehiclesGoingRight.size() - 1 << "] >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
 				displayAnalysisGoingRight(frameNumber, vehiclesGoingRight.size() - 1, coalescedRectangle, none, AnalysisFrame, -1);
@@ -834,13 +858,13 @@ bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame, const string &d
 
 		if (safeR2LZone > 0 && safeL2RZone > 0){
 			coalescedRectangle = coalesce(objectBoundingRectangleR2L, numOKSizeObjectsR2L,
-				     max(  max(g.pixelRight - safeL2RZone, g.pixelRight - safeR2LZone),
-				          (g.pixelLeft + g.pixelRight) / 2), g.pixelRight, strict);  // Look for vehicle from right
+				max(  max(g.pixelRight - safeL2RZone, g.pixelRight - safeR2LZone),
+				(g.pixelLeft + g.pixelRight) / 2), g.pixelRight, strict);  // Look for vehicle from right
 			if (coalescedRectangle.x != -1){
 				vehiclesGoingLeft.push_back(VehicleDynamics(R2L));
 				vehiclesGoingLeft[vehiclesGoingLeft.size() - 1].addSnapshot(Snapshot(coalescedRectangle, frameNumber));
 				if (coalescedRectangle.x <= g.speedLineRight)
-					     vehiclesGoingLeft[vehiclesGoingLeft.size() - 1].markInvalidSpeed();
+					vehiclesGoingLeft[vehiclesGoingLeft.size() - 1].markInvalidSpeed();
 				if (pleaseTrace) traceFile << endl << endl << "<" << frameNumber
 					<< ">     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Just added leftbound vehicle[" << vehiclesGoingLeft.size() - 1 << "] <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 				displayAnalysisGoingLeft(frameNumber, vehiclesGoingLeft.size() - 1, coalescedRectangle, none, AnalysisFrame, -1);
@@ -1096,13 +1120,13 @@ void processFile(const string &fileName) {
 		objectDetected = manageMovers(thresholdImage, ROIFr2, get_date_and_time(fileName, ", "));
 
 		frameNumber += 2;  // Note: frames are used in frame differencing operations only once each, so frame count jumps by two, not one.
-				  // One could argue that using each frame as the second frame in a differencing operation, and then using it a second time
-				  // as the first frame in the next differencing operation would increase resolution.  It probably would.  However,
-				  // doubling frame differencing operations will increase processing times, and probably not add much to speed estimations quality.
-				  // Look at the function computeFinalSpeed() in vehicleDynamics.cpp where I analyze distances of front bumper from the speed zone
-				  // lines to decide whether or not to add or subtract one frame from the total number of frames a vehicle took to pass
-				  // through the speed measuring zone.   I contend performing the +/-1 analysis brings back the accuracy that doubling frame
-				  // differencing operations would provide, but at half the computational cost.
+		                   // One could argue that using each frame as the second frame in a differencing operation, and then using it a second time
+		                   // as the first frame in the next differencing operation would increase resolution.  It probably would.  However,
+		                   // doubling frame differencing operations will increase processing times, and probably not add much to speed estimations quality.
+		                   // Look at the function computeFinalSpeed() in vehicleDynamics.cpp where I analyze distances of front bumper from the speed zone
+		                   // lines to decide whether or not to add or subtract one frame from the total number of frames a vehicle took to pass
+		                   // through the speed measuring zone.   I contend performing the +/-1 analysis brings back the accuracy that doubling frame
+		                   // differencing operations would provide, but at half the computational cost.
 
 		//show captured frame
 		if (showVideo)imshow("Whole Scene", ROIFr2);
@@ -1148,7 +1172,7 @@ void processFile(const string &fileName) {
 	capture.release();
 }
 
-int main(int argc, const char **argv){
+int main(int argc, char *const *argv){
 	setup(argc, argv);  // Get config data and user preferences for files to process, tracing, debugging, start frame and others
 
 //  * * * * * * * * * * * * * * * * * * * * * *  M a i n   L o o p   o v e r   o n e   o r   m o r e   i n p u t   f i l e s  * * * * * * * * * * * * * * * *
