@@ -87,7 +87,6 @@ ofstream traceFile;
 ofstream statsFile;
 vector<string> files;  // video files to process
 VideoCapture capture;  //video capture object.
-string dirPath; // path to fileName
 string fileMid; // The date part of the file name placed there by the Foscam camera
 int objDelay = 50;  // delay to be used when objects are detected in ROI;  Can be changed through use of "f" and "s" keys while running
 bool pleaseTrace = false;  // If you want a trace file (lots of debug info)
@@ -121,7 +120,12 @@ static string get_date_and_time(const string &filename, const string &sep) {
 
 // Interact with the user via command line to gather setup information.
 // Also, call readconfig() to read in (from file VST.cfg) and assign configuration data.
-void setup(){
+void setup(int argc, const char **argv){
+	if (argc <= 1) {
+		cerr << "Usage:" << endl;
+		cerr << "  vst file.avi [file.avi [...]]" << endl;
+		exit(EXIT_FAILURE);
+	}
 
 // Get configuration values from VST.cfg and set corresponding objects in Globals.h to read-in values.
 	if (!g.readConfig()){
@@ -133,64 +137,13 @@ void setup(){
 	AnalysisBox = Rect(g.AnalysisBoxLeft, g.AnalysisBoxTop, g.AnalysisBoxWidth, g.AnalysisBoxHeight);  // For use when performing speed analysis in cropped region
 
 	Mat frame;
-	string camPath = g.dataPathPrefix + DIR_SEP + "IPCam" + DIR_SEP;
 
-	cout << endl << endl;
-
-// Get directory containing file(s) to be processed
-	vector<string> directories = dir_to_list(camPath);
-
-	if (directories.empty()) {
-		cerr << "Did not find any candidate directories in " << camPath << endl;
-		exit(EXIT_FAILURE);
-	}
-
-	for (size_t i=0; i<directories.size(); i++) {
-		printf("%2zd: %s\n", i, directories[i].c_str());
-	}
-	string dirName;
-	while (dirName.empty()) {
-		if (cin.eof()) exit(EXIT_FAILURE);
-		cout << "Enter the number for the directory to use: " << flush;
-		string buf;
-		getline(cin, buf);
-		char *endptr;
-		size_t idx = strtoul(buf.c_str(), &endptr, 10);
-		if (!buf.empty() && !*endptr && idx < directories.size()) {
-			dirName = directories[idx];
-		}
-	}
-	dirPath = camPath + dirName;
-
-// Go through the file names in the selected directory for the user.
-	files = dir_to_list(dirPath);
-	if (files.empty()) {
-		cerr << "Did not find any candidate files in " << dirPath << endl;
-		exit(EXIT_FAILURE);
-	}
-
-	for (size_t i=0; i<files.size(); i++) {
-		printf("%2zd: %s\n", i, files[i].c_str());
-	}
-
-	while (true) {
-		if (cin.eof()) exit(EXIT_FAILURE);
-		cout << "Enter the number for the file to use, or * for all: " << flush;
-		string buf;
-		getline(cin, buf);
-		if (buf == "*") break;
-		char *endptr;
-		size_t idx = strtoul(buf.c_str(), &endptr, 10);
-		if (buf.empty() || *endptr || idx >= files.size()) continue;  // bad input -> try again
-		vector<string> onefile;
-		onefile.push_back(files[idx]);
-		files.swap(onefile);
-		break;
-	}
+	for (int i=1; i<argc; i++)
+		files.push_back(argv[i]);
 	assert(!files.empty());
 
 	// Do a one-time setup of region of interest, obstructions and speed posts
-	string FullName = dirPath + DIR_SEP + files.back();
+	string FullName = files.back();
 	capture.open(FullName);
 	if (!capture.isOpened()){
 		cout << "ERROR ACQUIRING VIDEO FEED\n";
@@ -241,8 +194,8 @@ void setup(){
 
 // Open trace file (if requested) and stats file
 	if (files.size() > 1){ // give trace and stats files names based on directory name
-		if (pleaseTrace) traceFile.open(g.dataPathPrefix + DIR_SEP + "trace" + DIR_SEP + "trace_" + dirName + ".txt");
-		statsFile.open(g.dataPathPrefix + DIR_SEP + "stats" + DIR_SEP + "stats_" + dirName + ".csv");
+		if (pleaseTrace) traceFile.open("trace.txt");
+		statsFile.open("stats.csv");
 	}
 	else{ // yesNoAll == "y" which means only one file to process; give it name corresponding to input file name
 		string d_t = get_date_and_time(files.front(), "_");
@@ -294,7 +247,7 @@ void setup(){
 		if (!answer.empty()) minimumProfileArea = stoi(answer);
 		cout << endl;
 		if (files.size() > 1){ // give trace and stats files names based on directory name
-			hiLiteVideo.open(g.dataPathPrefix + DIR_SEP + "HiLites" + DIR_SEP + "Hilites_" + dirName + ".avi",
+			hiLiteVideo.open("Hilites.avi",
 //				CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
 			-1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
 		}
@@ -1138,7 +1091,7 @@ int main(){
 	Mat differenceImage;
 	Mat thresholdImage;  	//thresholded difference image (for use in findContours() function)
 
-	setup();  // Get config data and user preferences for files to process, tracing, debugging, start frame and others
+	setup(argc, argv);  // Get config data and user preferences for files to process, tracing, debugging, start frame and others
 
 //  * * * * * * * * * * * * * * * * * * * * * *  M a i n   L o o p   o v e r   o n e   o r   m o r e   i n p u t   f i l e s  * * * * * * * * * * * * * * * *
 
