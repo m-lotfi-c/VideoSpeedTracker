@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "../common/portability.h"
 // #include <string>
 
 using namespace std;
@@ -151,8 +152,15 @@ bool Globals::applyConfig(const string &lhs, const string &rhs) {
 bool Globals::readConfig(){
 	ifstream configIn("VST.cfg");
 	if (!configIn.good()){
-		cout << "Can't open VST.cfg." << endl;
-		return false;
+	  	const char *home = getenv("HOME");
+		if (home) {
+			string rcfile = string(home) + DIR_SEP + ".vstrc";
+			configIn.open("/home/patrick/.vstrc");
+		}
+		if (!configIn.good()){
+			cout << "Can't open VST.cfg." << endl;
+			return false;
+		}
 	}
 
 	string inLine;
