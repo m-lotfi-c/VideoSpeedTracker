@@ -71,11 +71,7 @@ bool Globals::readConfig(){
 			continue;   // blank line
 		string lhs, rhs;
 		getSides(inLine, &lhs, &rhs);
-		if (lhs == "dataPathPrefix") {
-			dataPathPrefix = rhs;
-			cout << "dataPathPrefix = " << dataPathPrefix << endl;
-		}
-		else if (lhs == "L2RDirection") {
+		if (lhs == "L2RDirection") {
 			L2RDirection = rhs;
 			cout << "L2RDirection = " << L2RDirection << endl;
 		}

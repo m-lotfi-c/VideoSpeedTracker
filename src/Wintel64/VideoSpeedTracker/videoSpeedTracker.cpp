@@ -199,8 +199,8 @@ void setup(int argc, const char **argv){
 	}
 	else{ // yesNoAll == "y" which means only one file to process; give it name corresponding to input file name
 		string d_t = get_date_and_time(files.front(), "_");
-		if (pleaseTrace) traceFile.open(g.dataPathPrefix + DIR_SEP + "trace" + DIR_SEP + "trace_" + d_t + ".txt");
-		statsFile.open(g.dataPathPrefix + DIR_SEP + "stats" + DIR_SEP + "stats_" + d_t + ".csv");
+		if (pleaseTrace) traceFile.open("trace.txt");
+		statsFile.open("stats.csv");
 	}
 
 	statsFile << ", , Frame, Direction, StartFrame, EndFrame, # Frames, StartPix, EndPix, DeltaPix, VehicleArea, , estSpeed" << endl;
@@ -253,7 +253,7 @@ void setup(int argc, const char **argv){
 		}
 		else{ // yesNoAll == "y" which means only one file to process; give it name corresponding to input file name
 			string d_t = get_date_and_time(files.front(), "_");
-			hiLiteVideo.open(g.dataPathPrefix + DIR_SEP + "HiLites" + DIR_SEP + "Hilites_" + d_t + ".avi",
+			hiLiteVideo.open("HiLites.avi",
 //				CV_FOURCC('X', '2', '6', '4'), capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true);
 			-1, capture.get(CV_CAP_PROP_FPS), Size(1280, 720), true); // bug in OpenCV open function.  x264 has to be picked from list.  Argh.
 			
