@@ -31,15 +31,6 @@
 
 using namespace std;
 
-Globals::Globals()
-{
-}
-
-
-Globals::~Globals()
-{
-}
-
 string inLine, lhs, rhs;
 
 

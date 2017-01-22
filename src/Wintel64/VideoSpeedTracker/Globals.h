@@ -51,10 +51,6 @@ using namespace std;
 class Globals
 {
 public:
-	Globals();
-
-	~Globals();
-
 	bool readConfig();	
 
 	const int pixelLeft = 0;				// This won't change.  It's used relative to AnalysisBoxLeft.
