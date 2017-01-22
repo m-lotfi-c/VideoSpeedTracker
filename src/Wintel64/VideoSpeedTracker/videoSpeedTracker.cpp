@@ -130,7 +130,7 @@ void setup(int argc, const char **argv){
 // Get configuration values from VST.cfg and set corresponding objects in Globals.h to read-in values.
 	if (!g.readConfig()){
 		cout << "Reading of config file appears to have failed.   Exiting" << endl;
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 // PixelLeft is always zero relative to AnalysisBoxLeft;  PixelRight depends on AnalysisBoxWidth/
 	g.pixelRight = g.AnalysisBoxWidth; // index of rightmost pixel in AnalysisBox.
@@ -178,7 +178,7 @@ void setup(int argc, const char **argv){
 		getline(cin, yesNo);
 		cv::destroyWindow("Full Frame");
 		capture.release();
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	else{
 		if (yesNo.substr(0, 1) == "y")
