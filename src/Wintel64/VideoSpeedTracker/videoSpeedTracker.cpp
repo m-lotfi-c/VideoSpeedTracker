@@ -1082,8 +1082,7 @@ bool manageMovers(Mat wholeScenethreshImage, Mat &AnalysisFrame, const string &d
 // which causes processing of all known and newly entered vehicls to occur at time "frameNumber."  This one call exercises most of the code above
 // and most all of the code in vehicleDynamics.
 
-int main(){
-
+void processFile(const string &fileName) {
 	bool objectDetected = false;
 	bool pause = false;  	 // toggle using "p"
 	bool showVideo = true;  // turning this off should make processing run faster.  toggled with a "v"
@@ -1091,121 +1090,118 @@ int main(){
 	Mat differenceImage;
 	Mat thresholdImage;  	//thresholded difference image (for use in findContours() function)
 
+	cout << endl << "Now processing cam input file: " << fileName << endl;
+	if (pleaseTrace) traceFile << endl << "Now processing cam input file: " << fileName << endl;
+	vehiclesGoingRight.erase(vehiclesGoingRight.begin(), vehiclesGoingRight.end());  // Reinitialize
+	vehiclesGoingLeft.erase(vehiclesGoingLeft.begin(), vehiclesGoingLeft.end());   // Reinitialize  
+	bailing = false;  // Reinitialize
+	startFrame = 0.0;
+
+
+	string FName = fileName;
+	cout << "Trying to capture from " + FName << endl;
+	capture.open(FName);
+
+	if (!capture.isOpened()){
+		cout << "ERROR ACQUIRING VIDEO FEED\n";
+		getchar();
+		return;
+	}
+
+	double frameWidth = capture.get(CV_CAP_PROP_FRAME_WIDTH);
+	if (frameWidth != 1280.0){
+		cout << "Frame width is not 1280.  Bailing";
+		return;
+	}
+	double FPS = capture.get(CV_CAP_PROP_FPS);
+	if (fabs(FPS - 30.0) > 1e-6){
+		cout << "Frame rate is " << FPS << ", not 30.  Bailing";
+		return;
+	}
+
+	capture.set(CV_CAP_PROP_POS_FRAMES, startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
+	frameNumber = int(startFrame);
+
+	//work through frame pairs looking for differences
+	while (capture.get(CV_CAP_PROP_POS_FRAMES) < capture.get(CV_CAP_PROP_FRAME_COUNT) - 2){ // minus 2 to prevent reading empty frame at end.
+		capture.read(frame1);
+		Mat ROIFr1 = frame1(AnalysisBox).clone();  			// Carve out the analysis box for motion detection
+		cv::cvtColor(ROIFr1, grayImage1, COLOR_BGR2GRAY);  //convert ROIFr1 to gray scale for frame differencing
+		capture.read(frame2);
+		Mat ROIFr2 = frame2(AnalysisBox).clone();   		   // Carve out the analysis box for motion detection
+		cv::cvtColor(ROIFr2, grayImage2, COLOR_BGR2GRAY);   //convert ROIFr2 to gray scale for frame differencing
+		cv::absdiff(grayImage1, grayImage2, differenceImage);   			//perform frame differencing
+		cv::threshold(differenceImage, thresholdImage, g.SENSITIVITY_VALUE, 255, THRESH_BINARY);  //threshold intensity image at a given sensitivity value
+		cv::blur(thresholdImage, thresholdImage, cv::Size(g.BLUR_SIZE, g.BLUR_SIZE));  //blur the image to reduce noise.
+		cv::threshold(thresholdImage, thresholdImage, g.SENSITIVITY_VALUE, 255, THRESH_BINARY);	//threshold again to obtain binary image from blur output
+
+		if (showVideo)	imshow("Final Threshold Image", thresholdImage);
+		else cv::destroyWindow("Final Threshold Image");
+
+	// ************************************************* Vehicle motion analysis *****************************************************
+		objectDetected = manageMovers(thresholdImage, ROIFr2, get_date_and_time(fileName, ", "));
+
+		frameNumber += 2;  // Note: frames are used in frame differencing operations only once each, so frame count jumps by two, not one.
+				  // One could argue that using each frame as the second frame in a differencing operation, and then using it a second time
+				  // as the first frame in the next differencing operation would increase resolution.  It probably would.  However,
+				  // doubling frame differencing operations will increase processing times, and probably not add much to speed estimations quality.
+				  // Look at the function computeFinalSpeed() in vehicleDynamics.cpp where I analyze distances of front bumper from the speed zone
+				  // lines to decide whether or not to add or subtract one frame from the total number of frames a vehicle took to pass
+				  // through the speed measuring zone.   I contend performing the +/-1 analysis brings back the accuracy that doubling frame
+				  // differencing operations would provide, but at half the computational cost.
+
+		//show captured frame
+		if (showVideo)imshow("Whole Scene", ROIFr2);
+
+		int key;
+		if (objectDetected)
+			key = waitKey(objDelay);
+		else
+			key = 0;
+		switch (key) {
+		case 27: //'esc'     exit program.
+			return;
+		case 102: // 'f'    make display go faster;
+			if (objDelay > 10) objDelay = objDelay / 5;
+			cout << "<" << frameNumber << ">  Delay:" << objDelay << endl;
+			break;
+		case 112: //'p'     pause/resume.
+			pause = !pause;
+			if (pause == true){
+				cout << "Code paused, press 'p' again to resume" << endl;
+				while (pause == true){
+					//wait for another p
+					switch (waitKey()){
+					case 112:
+						pause = false;
+						cout << "<" << frameNumber << ">  Code Resumed" << endl;
+						break;
+					} // switch
+				} // while paused
+			} // if pause
+			break;
+		case 115: // 's'      slow down display rate
+			if (objDelay <1250) objDelay = 5* objDelay;
+			cout << "<" << frameNumber << ">  Delay:" << objDelay << endl;
+			break;
+		case 118:  // 'v'  turn video on/off
+			showVideo = !showVideo;
+			break;
+		} // switch
+
+	} // main loop for processing one input file
+
+	capture.release();
+}
+
+int main(int argc, const char **argv){
 	setup(argc, argv);  // Get config data and user preferences for files to process, tracing, debugging, start frame and others
 
 //  * * * * * * * * * * * * * * * * * * * * * *  M a i n   L o o p   o v e r   o n e   o r   m o r e   i n p u t   f i l e s  * * * * * * * * * * * * * * * *
 
 	for (vector<string>::const_iterator fnp=files.begin(); fnp!=files.end(); ++fnp) {
-		const string fileName = *fnp;
-
-		cout << endl << "Now processing cam input file: " << fileName << endl;
-		if (pleaseTrace) traceFile << endl << "Now processing cam input file: " << fileName << endl;
-		vehiclesGoingRight.erase(vehiclesGoingRight.begin(), vehiclesGoingRight.end());  // Reinitialize
-		vehiclesGoingLeft.erase(vehiclesGoingLeft.begin(), vehiclesGoingLeft.end());   // Reinitialize  
-		bailing = false;  // Reinitialize
-		startFrame = 0.0;
-
-
-		// dirName is the directory name (only) in which input files reside.  Its name is expected to be of the form: yyyymmdd
-		// dirPath is the path to the directory in which input (.avi) files are located; it includes dirName at the end, but no trailing reverse slashes 
-		// fileName is the name of the current avi file to be processed.  Its form is "manual_" <yyyymmddhhmmss> ".avi"   <<-- no spaces
-
-		string FName = dirPath + DIR_SEP + fileName;
-		cout << "Trying to capture from " + FName << endl;
-		capture.open(FName);
-
-		if (!capture.isOpened()){
-			cout << "ERROR ACQUIRING VIDEO FEED\n";
-			getchar();
-			return -1;
-		}
-
-		double frameWidth = capture.get(CV_CAP_PROP_FRAME_WIDTH);
-		if (frameWidth != 1280.0){
-			cout << "Frame width is not 1280.  Bailing";
-			return - 1;
-		}
-		double FPS = capture.get(CV_CAP_PROP_FPS);
-		if (fabs(FPS - 30.0) > 1e-6){
-			cout << "Frame rate is " << FPS << ", not 30.  Bailing";
-			return -1;
-		}
-
-		capture.set(CV_CAP_PROP_POS_FRAMES, startFrame);  // Set frame number to start at, in first file to be processed;  Remaining files will start at zero.
-		frameNumber = int(startFrame);
-
-		//work through frame pairs looking for differences
-		while (capture.get(CV_CAP_PROP_POS_FRAMES) < capture.get(CV_CAP_PROP_FRAME_COUNT) - 2){ // minus 2 to prevent reading empty frame at end.
-			capture.read(frame1);
-			Mat ROIFr1 = frame1(AnalysisBox).clone();  			// Carve out the analysis box for motion detection
-			cv::cvtColor(ROIFr1, grayImage1, COLOR_BGR2GRAY);  //convert ROIFr1 to gray scale for frame differencing
-			capture.read(frame2);
-			Mat ROIFr2 = frame2(AnalysisBox).clone();   		   // Carve out the analysis box for motion detection
-			cv::cvtColor(ROIFr2, grayImage2, COLOR_BGR2GRAY);   //convert ROIFr2 to gray scale for frame differencing
-			cv::absdiff(grayImage1, grayImage2, differenceImage);   			//perform frame differencing
-			cv::threshold(differenceImage, thresholdImage, g.SENSITIVITY_VALUE, 255, THRESH_BINARY);  //threshold intensity image at a given sensitivity value
-			cv::blur(thresholdImage, thresholdImage, cv::Size(g.BLUR_SIZE, g.BLUR_SIZE));  //blur the image to reduce noise.
-			cv::threshold(thresholdImage, thresholdImage, g.SENSITIVITY_VALUE, 255, THRESH_BINARY);	//threshold again to obtain binary image from blur output
-
-			if (showVideo)	imshow("Final Threshold Image", thresholdImage);
-			else cv::destroyWindow("Final Threshold Image");
-
-		// ************************************************* Vehicle motion analysis *****************************************************
-			objectDetected = manageMovers(thresholdImage, ROIFr2, get_date_and_time(fileName, ", "));
-
-			frameNumber += 2;  // Note: frames are used in frame differencing operations only once each, so frame count jumps by two, not one.
-			                  // One could argue that using each frame as the second frame in a differencing operation, and then using it a second time
-			                  // as the first frame in the next differencing operation would increase resolution.  It probably would.  However,
-			                  // doubling frame differencing operations will increase processing times, and probably not add much to speed estimations quality.
-			                  // Look at the function computeFinalSpeed() in vehicleDynamics.cpp where I analyze distances of front bumper from the speed zone
-			                  // lines to decide whether or not to add or subtract one frame from the total number of frames a vehicle took to pass
-			                  // through the speed measuring zone.   I contend performing the +/-1 analysis brings back the accuracy that doubling frame
-			                  // differencing operations would provide, but at half the computational cost.
-
-			//show captured frame
-			if (showVideo)imshow("Whole Scene", ROIFr2);
-
-			int key;
-			if (objectDetected)
-				key = waitKey(objDelay);
-			else
-				key = 0;
-			switch (key) {
-			case 27: //'esc'     exit program.
-				return 0;
-			case 102: // 'f'    make display go faster;
-				if (objDelay > 10) objDelay = objDelay / 5;
-				cout << "<" << frameNumber << ">  Delay:" << objDelay << endl;
-				break;
-			case 112: //'p'     pause/resume.
-				pause = !pause;
-				if (pause == true){
-					cout << "Code paused, press 'p' again to resume" << endl;
-					while (pause == true){
-						//wait for another p
-						switch (waitKey()){
-						case 112:
-							pause = false;
-							cout << "<" << frameNumber << ">  Code Resumed" << endl;
-							break;
-						} // switch
-					} // while paused
-				} // if pause
-				break;
-			case 115: // 's'      slow down display rate
-				if (objDelay <1250) objDelay = 5* objDelay;
-				cout << "<" << frameNumber << ">  Delay:" << objDelay << endl;
-				break;
-			case 118:  // 'v'  turn video on/off
-				showVideo = !showVideo;
-				break;
-			} // switch
-
-		} // main loop for processing one input file
-
-		capture.release();
-
-	} // looping over input files loop end
+		processFile(*fnp);
+	}
 
 	cout << endl << "Done processing all input files: " << files.back() << endl;
 	if (pleaseTrace) traceFile << endl << "Done processing all input files: " << files.back() << endl;
