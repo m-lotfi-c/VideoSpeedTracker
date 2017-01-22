@@ -101,13 +101,16 @@ bool Globals::readConfig(){
 		return false;
 	}
 
-	int place, place2;
 	int lineNo = 0;
+	string::size_type place, place2;
 	while (getline(configIn, inLine)) {
 		if (!configIn){
 			cout << "Unexpected error in config file." << endl;
 			return false;
 		}
+		if ((place = inLine.find('#')) != string::npos)
+			inLine = inLine.substr(0, place);
+		inLine = trim(inLine);
 		while (inLine.back() == '\r')
 			inLine.pop_back();
 		if (inLine.empty())
