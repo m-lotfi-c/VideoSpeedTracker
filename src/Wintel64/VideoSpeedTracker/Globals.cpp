@@ -31,9 +31,6 @@
 
 using namespace std;
 
-string inLine, lhs, rhs;
-
-
 string trim(const string &toBeTrimmed){
 	string::size_type first = 0;
 	while (first < toBeTrimmed.size() && toBeTrimmed[first] == ' ') first++;
@@ -59,6 +56,7 @@ bool Globals::readConfig(){
 	}
 
 	string::size_type place, place2;
+	string inLine;
 	while (getline(configIn, inLine)) {
 		if (!configIn){
 			cout << "Unexpected error in config file." << endl;
@@ -71,112 +69,106 @@ bool Globals::readConfig(){
 			inLine.pop_back();
 		if (inLine.empty())
 			continue;   // blank line
-		if (getSides(inLine)){
-			if (lhs == "dataPathPrefix") {
-				dataPathPrefix = rhs;
-				cout << "dataPathPrefix = " << dataPathPrefix << endl;
-			}
-			else if (lhs == "L2RDirection") {
-				L2RDirection = rhs;
-				cout << "L2RDirection = " << L2RDirection << endl;
-			}
-			else if (lhs == "R2LDirection") {
-				R2LDirection = rhs;
-				cout << "R2LDirection = " << R2LDirection << endl;
-			}
-			else if (lhs == "obstruction") {	// If no foreground obstructions in scene, just make first value >= second value
-				place = rhs.find(',');
-				place2 = rhs.find(']');
-				obstruction[0] = stoi(rhs.substr(1, place - 1));
-				obstruction[1] = stoi(rhs.substr(place + 1, (place2 - place) - 1));
-				cout << "obstruction[0] = " << obstruction[0] << endl;
-				cout << "obstruction[1] = " << obstruction[1] << endl;
-			}
-			else if (lhs == "AnalysisBoxLeft") {	// must be >= 0 and <= 1279
-				AnalysisBoxLeft = stoi(rhs);
-				cout << "AnalysisBoxLeft = " << AnalysisBoxLeft << endl;
-			}
-			else if (lhs == "AnalysisBoxTop") {	// must be >= 0 and <= 719
-				AnalysisBoxTop = stoi(rhs);
-				cout << "AnalysisBoxTop = " << AnalysisBoxTop << endl;
-			}
-			else if (lhs == "AnalysisBoxWidth") {	// must be >= 0 and <= (1279 - AnalysisBoxLeft)
-				AnalysisBoxWidth = stoi(rhs);
-				cout << "AnalysisBoxWidth = " << AnalysisBoxWidth << endl;
-			}
-			else if (lhs == "AnalysisBoxHeight") {	// must be >= 0 and <= (719 - AnalysisBoxTop)
-				AnalysisBoxHeight = stoi(rhs);
-				cout << "AnalysisBoxHeight = " << AnalysisBoxHeight << endl;
-			}
-			else if (lhs == "speedLineLeft") {	// relative to AnalysisBoxLeft.  Must be >= 0 and <= (719 - AnalysisBoxWidth)
-				speedLineLeft = stoi(rhs);
-				cout << "speedLineLeft = " << speedLineLeft << endl;
-			}
-			else if (lhs == "speedLineRight") {	// relative to AnalysisBoxLeft.  Must be > speedLineLeft and <= (719 - AnalysisBoxWidth)
-				speedLineRight = stoi(rhs);
-				cout << "speedLineRight = " << speedLineRight << endl;
-			}
-			else if (lhs == "maxL2RDistOnEntry") {
-				maxL2RDistOnEntry = stoi(rhs);
-				cout << "maxL2RDistOnEntry = " << maxL2RDistOnEntry << endl;
-			}
-			else if (lhs == "maxR2LDistOnEntry") {
-				maxR2LDistOnEntry = stoi(rhs);
-				cout << "maxR2LDistOnEntry = " << maxR2LDistOnEntry << endl;
-			}
-			else if (lhs == "entryLookBack") {
-				entryLookBack = stoi(rhs);
-				cout << "entryLookBack = " << entryLookBack << endl;
-			}
-			else if (lhs == "obstruction_extent") {
-				obstruction_extent = stoi(rhs);
-				cout << "obstruction_extent = " << obstruction_extent << endl;
-			}
-			else if (lhs == "largeVehicleArea") {
-				largeVehicleArea = stoi(rhs);
-				cout << "largeVehicleArea = " << largeVehicleArea << endl;
-			}
-			else if (lhs == "CalibrationFramesL2R") {	// How many frames does it take a L2R vehicle to pass thru speed zone at speed limit?
-				CalibrationFramesL2R = stoi(rhs);
-				cout << "CalibrationFramesL2R = " << CalibrationFramesL2R << endl;
-			}
-			else if (lhs == "CalibrationFramesR2L") {	// How many frames does it take a R2L vehicle to pass thru speed zone at speed limit?
-				CalibrationFramesR2L = stoi(rhs);
-				cout << "CalibrationFramesR2L = " << CalibrationFramesR2L << endl;
-			}
-			else if (lhs == "SENSITIVITY_VALUE") {
-				SENSITIVITY_VALUE = stoi(rhs);
-				cout << "SENSITIVITY_VALUE = " << SENSITIVITY_VALUE << endl;
-			}
-			else if (lhs == "BLUR_SIZE") {
-				BLUR_SIZE = stoi(rhs);
-				cout << "BLUR_SIZE = " << BLUR_SIZE << endl;
-			}
-			else if (lhs == "SLOP") {
-				SLOP = stoi(rhs);
-				cout << "SLOP = " << SLOP << endl;
-			}
-			else if (lhs == "R2LStreetY") {	// R2L hubcap line
-				R2LStreetY = stoi(rhs);
-				cout << "R2LStreetY = " << R2LStreetY << endl;
-			}
-			else if (lhs == "L2RStreetY") {	// L2R hubcap line
-				L2RStreetY = stoi(rhs);
-				cout << "L2RStreetY = " << L2RStreetY << endl;
-			}
-			else if (lhs == "nextHeight") {
-				nextHeight = stoi(rhs);
-				cout << "nextHeight = " << nextHeight << endl;
-			}
-			else {
-				cout << "Unknown key in config file: <" << lhs << ">.  Abortiing." << endl;
-				return false;
-			}
-		
+		string lhs, rhs;
+		getSides(inLine, &lhs, &rhs);
+		if (lhs == "dataPathPrefix") {
+			dataPathPrefix = rhs;
+			cout << "dataPathPrefix = " << dataPathPrefix << endl;
 		}
-		else{
-			cout << "getSides() failed in config reader.  Check VST.cfg syntax.  Aborting " << endl;
-			configIn.close();
+		else if (lhs == "L2RDirection") {
+			L2RDirection = rhs;
+			cout << "L2RDirection = " << L2RDirection << endl;
+		}
+		else if (lhs == "R2LDirection") {
+			R2LDirection = rhs;
+			cout << "R2LDirection = " << R2LDirection << endl;
+		}
+		else if (lhs == "obstruction") {	// If no foreground obstructions in scene, just make first value >= second value
+			place = rhs.find(',');
+			place2 = rhs.find(']');
+			obstruction[0] = stoi(rhs.substr(1, place - 1));
+			obstruction[1] = stoi(rhs.substr(place + 1, (place2 - place) - 1));
+			cout << "obstruction[0] = " << obstruction[0] << endl;
+			cout << "obstruction[1] = " << obstruction[1] << endl;
+		}
+		else if (lhs == "AnalysisBoxLeft") {	// must be >= 0 and <= 1279
+			AnalysisBoxLeft = stoi(rhs);
+			cout << "AnalysisBoxLeft = " << AnalysisBoxLeft << endl;
+		}
+		else if (lhs == "AnalysisBoxTop") {	// must be >= 0 and <= 719
+			AnalysisBoxTop = stoi(rhs);
+			cout << "AnalysisBoxTop = " << AnalysisBoxTop << endl;
+		}
+		else if (lhs == "AnalysisBoxWidth") {	// must be >= 0 and <= (1279 - AnalysisBoxLeft)
+			AnalysisBoxWidth = stoi(rhs);
+			cout << "AnalysisBoxWidth = " << AnalysisBoxWidth << endl;
+		}
+		else if (lhs == "AnalysisBoxHeight") {	// must be >= 0 and <= (719 - AnalysisBoxTop)
+			AnalysisBoxHeight = stoi(rhs);
+			cout << "AnalysisBoxHeight = " << AnalysisBoxHeight << endl;
+		}
+		else if (lhs == "speedLineLeft") {	// relative to AnalysisBoxLeft.  Must be >= 0 and <= (719 - AnalysisBoxWidth)
+			speedLineLeft = stoi(rhs);
+			cout << "speedLineLeft = " << speedLineLeft << endl;
+		}
+		else if (lhs == "speedLineRight") {	// relative to AnalysisBoxLeft.  Must be > speedLineLeft and <= (719 - AnalysisBoxWidth)
+			speedLineRight = stoi(rhs);
+			cout << "speedLineRight = " << speedLineRight << endl;
+		}
+		else if (lhs == "maxL2RDistOnEntry") {
+			maxL2RDistOnEntry = stoi(rhs);
+			cout << "maxL2RDistOnEntry = " << maxL2RDistOnEntry << endl;
+		}
+		else if (lhs == "maxR2LDistOnEntry") {
+			maxR2LDistOnEntry = stoi(rhs);
+			cout << "maxR2LDistOnEntry = " << maxR2LDistOnEntry << endl;
+		}
+		else if (lhs == "entryLookBack") {
+			entryLookBack = stoi(rhs);
+			cout << "entryLookBack = " << entryLookBack << endl;
+		}
+		else if (lhs == "obstruction_extent") {
+			obstruction_extent = stoi(rhs);
+			cout << "obstruction_extent = " << obstruction_extent << endl;
+		}
+		else if (lhs == "largeVehicleArea") {
+			largeVehicleArea = stoi(rhs);
+			cout << "largeVehicleArea = " << largeVehicleArea << endl;
+		}
+		else if (lhs == "CalibrationFramesL2R") {	// How many frames does it take a L2R vehicle to pass thru speed zone at speed limit?
+			CalibrationFramesL2R = stoi(rhs);
+			cout << "CalibrationFramesL2R = " << CalibrationFramesL2R << endl;
+		}
+		else if (lhs == "CalibrationFramesR2L") {	// How many frames does it take a R2L vehicle to pass thru speed zone at speed limit?
+			CalibrationFramesR2L = stoi(rhs);
+			cout << "CalibrationFramesR2L = " << CalibrationFramesR2L << endl;
+		}
+		else if (lhs == "SENSITIVITY_VALUE") {
+			SENSITIVITY_VALUE = stoi(rhs);
+			cout << "SENSITIVITY_VALUE = " << SENSITIVITY_VALUE << endl;
+		}
+		else if (lhs == "BLUR_SIZE") {
+			BLUR_SIZE = stoi(rhs);
+			cout << "BLUR_SIZE = " << BLUR_SIZE << endl;
+		}
+		else if (lhs == "SLOP") {
+			SLOP = stoi(rhs);
+			cout << "SLOP = " << SLOP << endl;
+		}
+		else if (lhs == "R2LStreetY") {	// R2L hubcap line
+			R2LStreetY = stoi(rhs);
+			cout << "R2LStreetY = " << R2LStreetY << endl;
+		}
+		else if (lhs == "L2RStreetY") {	// L2R hubcap line
+			L2RStreetY = stoi(rhs);
+			cout << "L2RStreetY = " << L2RStreetY << endl;
+		}
+		else if (lhs == "nextHeight") {
+			nextHeight = stoi(rhs);
+			cout << "nextHeight = " << nextHeight << endl;
+		}
+		else {
+			cout << "Unknown key in config file: <" << lhs << ">.  Abortiing." << endl;
 			return false;
 		}
 	}  // while not eof
