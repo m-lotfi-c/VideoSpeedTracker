@@ -467,7 +467,7 @@ statusTypes VehicleDynamics::estimateNextVehicleData(Globals& g, int frameNum){
 					trackEndPixel = int(nextFrontBumper); // End tracking R2L speed
 					trackEndFrame = frameNum;
 					finalSpeed = computeFinalSpeed(g, R2L, trackStartFrame, trackEndFrame, trackStartPixel, trackEndPixel, entryGap, endGap, estVelocity);
-					cout << "<" << frameNum << ">   < < < < < Speed is : " << finalSpeed << endl;
+					cout << "<" << frameNum << ">   < < < < <  Speed is : " << finalSpeed << endl;
 					deadReckonFB = true;    // Once speed measurement is done, just dead reckon vehicle out of the picture.
 				}
 				else {
